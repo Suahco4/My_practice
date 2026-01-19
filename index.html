@@ -1,0 +1,1363 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HoloStream | Next-Gen Screen Sharing</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@300;400;500;600;700&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --neon-blue: #00f3ff;
+            --neon-purple: #bc13fe;
+            --neon-green: #0aff0a;
+            --glass-bg: rgba(15, 23, 42, 0.6);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --bg-dark: #050b14;
+        }
+
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background-color: var(--bg-dark);
+            color: white;
+            overflow: hidden;
+            margin: 0;
+            padding: 0;
+        }
+
+        .font-orbitron { font-family: 'Orbitron', sans-serif; }
+        .font-inter { font-family: 'Inter', sans-serif; }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.3);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.2);
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--neon-blue);
+        }
+
+        /* Glassmorphism */
+        .glass-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .glass-button {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+        .glass-button:hover {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: var(--neon-blue);
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.3);
+            transform: translateY(-1px);
+        }
+
+        /* Animations */
+        @keyframes scanline {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(100%); }
+        }
+        .scanline::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(to bottom, transparent 50%, rgba(0, 243, 255, 0.05) 51%, transparent 52%);
+            background-size: 100% 4px;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 10px rgba(0, 243, 255, 0.2); }
+            50% { box-shadow: 0 0 25px rgba(0, 243, 255, 0.5); }
+        }
+
+        .glow-active {
+            animation: pulse-glow 2s infinite;
+            border-color: var(--neon-blue);
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+        .animate-float {
+            animation: float 6s ease-in-out infinite;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.4s ease-out forwards;
+        }
+
+        .speaking-ring {
+            box-shadow: 0 0 0 2px var(--neon-purple);
+            animation: pulse-ring 2s infinite;
+        }
+
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); opacity: 0.7; }
+            50% { transform: scale(1.05); opacity: 0; }
+            100% { transform: scale(0.95); opacity: 0; }
+        }
+
+        /* Utilities */
+        .text-neon-blue { color: var(--neon-blue); text-shadow: 0 0 10px rgba(0, 243, 255, 0.5); }
+        .text-neon-purple { color: var(--neon-purple); text-shadow: 0 0 10px rgba(188, 19, 254, 0.5); }
+        .border-neon-blue { border-color: var(--neon-blue); }
+        
+        /* Layout Specifics */
+        .grid-bg {
+            background-image: 
+                linear-gradient(rgba(0, 243, 255, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 243, 255, 0.05) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+
+        /* Loader */
+        .loader-ring {
+            display: inline-block;
+            position: relative;
+            width: 80px;
+            height: 80px;
+        }
+        .loader-ring div {
+            box-sizing: border-box;
+            display: block;
+            position: absolute;
+            width: 64px;
+            height: 64px;
+            margin: 8px;
+            border: 4px solid var(--neon-blue);
+            border-radius: 50%;
+            animation: loader-ring 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+            border-color: var(--neon-blue) transparent transparent transparent;
+        }
+        .loader-ring div:nth-child(1) { animation-delay: -0.45s; }
+        .loader-ring div:nth-child(2) { animation-delay: -0.3s; }
+        .loader-ring div:nth-child(3) { animation-delay: -0.15s; }
+        @keyframes loader-ring {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="h-screen w-screen overflow-hidden text-gray-200 selection:bg-cyan-500 selection:text-white">
+
+    <!-- Background Canvas -->
+    <canvas id="bg-canvas" class="fixed top-0 left-0 w-full h-full -z-10 opacity-30 pointer-events-none"></canvas>
+    
+    <!-- Background Grid -->
+    <div class="fixed top-0 left-0 w-full h-full -z-20 grid-bg pointer-events-none"></div>
+
+    <!-- Application Root -->
+    <div id="app" class="relative h-full w-full flex flex-col">
+        
+        <!-- Loading Screen -->
+        <div id="loader" class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-slate-950 transition-opacity duration-700">
+            <div class="loader-ring"><div></div><div></div><div></div><div></div></div>
+            <h1 class="mt-8 text-4xl font-orbitron tracking-widest text-white uppercase"><span class="text-neon-blue">Holo</span>Stream</h1>
+            <p class="mt-2 text-cyan-400/60 font-mono text-sm animate-pulse">INITIALIZING CORE SYSTEMS...</p>
+        </div>
+
+        <!-- Notifications Container -->
+        <div id="notifications" class="absolute top-6 right-6 z-50 flex flex-col gap-3 pointer-events-none">
+            <!-- Toasts injected here -->
+        </div>
+
+        <!-- LOBBY VIEW -->
+        <div id="lobby-view" class="flex-1 flex items-center justify-center p-6 hidden opacity-0 transition-opacity duration-500">
+            <div class="max-w-6xl w-full grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+                <!-- Left: Hero Text -->
+                <div class="space-y-8 animate-float">
+                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-900/30 border border-cyan-500/30 text-cyan-400 text-xs font-mono">
+                        <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+                        V 2.0.4 SYSTEM ONLINE
+                    </div>
+                    <h1 class="text-6xl md:text-7xl font-bold font-orbitron leading-tight">
+                        Share Reality <br />
+                        <span class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500">Without Limits</span>
+                    </h1>
+                    <p class="text-xl text-gray-400 max-w-lg">
+                        Ultra-low latency screen sharing with holographic fidelity. 
+                        Connect, collaborate, and create in a secure neural-linked environment.
+                    </p>
+                    
+                    <div class="flex gap-4">
+                        <button onclick="app.createMeeting()" class="group relative px-8 py-4 bg-cyan-500 hover:bg-cyan-400 text-black font-bold text-lg rounded-sm transition-all overflow-hidden">
+                            <span class="relative z-10 flex items-center gap-2">
+                                <i class="fa-solid fa-bolt"></i> NEW TRANSMISSION
+                            </span>
+                            <div class="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
+                        </button>
+                        
+                        <div class="flex-1 max-w-xs relative">
+                            <input type="text" id="join-code" placeholder="ENTER FREQUENCY CODE" class="w-full h-full bg-slate-900/50 border border-slate-700 focus:border-cyan-500 text-white px-4 pl-12 font-mono rounded-sm outline-none transition-colors uppercase">
+                            <i class="fa-solid fa-hashtag absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"></i>
+                            <button onclick="app.joinMeeting()" class="absolute right-2 top-1/2 -translate-y-1/2 p-2 hover:text-cyan-400 transition-colors">
+                                <i class="fa-solid fa-arrow-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Preview Card -->
+                <div class="relative group">
+                    <div class="absolute -inset-1 bg-gradient-to-r from-cyan-500 to-purple-600 rounded-lg blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
+                    <div class="relative glass-panel rounded-xl p-6 border border-slate-700/50 aspect-video flex flex-col">
+                        <div class="flex items-center justify-between mb-4 border-b border-slate-700/50 pb-4">
+                            <div class="flex gap-2">
+                                <div class="w-3 h-3 rounded-full bg-red-500/50"></div>
+                                <div class="w-3 h-3 rounded-full bg-yellow-500/50"></div>
+                                <div class="w-3 h-3 rounded-full bg-green-500/50"></div>
+                            </div>
+                            <div class="text-xs font-mono text-slate-500">PREVIEW_MODE.EXE</div>
+                        </div>
+                        <div class="flex-1 bg-slate-900/50 rounded-lg overflow-hidden relative">
+                            <video id="lobby-video-preview" autoplay muted playsinline class="w-full h-full object-cover transform scale-x-[-1]"></video>
+                            
+                            <div class="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-3 p-2 bg-black/40 backdrop-blur-md rounded-full border border-white/10">
+                                <button onclick="app.toggleLobbyAudio()" id="lobby-audio-btn" class="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center hover:bg-slate-700 transition-colors">
+                                    <i class="fa-solid fa-microphone"></i>
+                                </button>
+                                <button onclick="app.toggleLobbyVideo()" id="lobby-video-btn" class="w-10 h-10 rounded-full bg-cyan-500 text-black flex items-center justify-center hover:bg-cyan-400 transition-colors shadow-[0_0_15px_rgba(6,182,212,0.5)]">
+                                    <i class="fa-solid fa-video"></i>
+                                </button>
+                                <button class="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center hover:bg-slate-700 transition-colors">
+                                    <i class="fa-solid fa-gear"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="mt-4 flex justify-between items-center">
+                            <div class="text-sm text-gray-400">
+                                <i class="fa-solid fa-wave-square text-cyan-500 mr-2"></i>
+                                Audio Input: <span id="audio-device-label" class="text-white">Default</span>
+                            </div>
+                            <div class="h-1 w-24 bg-slate-800 rounded-full overflow-hidden">
+                                <div id="lobby-audio-level" class="h-full bg-cyan-500 w-0 transition-all duration-75"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MEETING ROOM VIEW -->
+        <div id="meeting-view" class="flex-1 flex hidden overflow-hidden">
+            <!-- Left Sidebar: Navigation -->
+            <div class="w-16 flex flex-col items-center py-6 glass-panel border-r-0 z-20 gap-6">
+                <div class="w-10 h-10 flex items-center justify-center bg-cyan-500/10 rounded-lg text-cyan-400 border border-cyan-500/20">
+                    <i class="fa-brands fa-hubspot text-xl"></i>
+                </div>
+                
+                <div class="flex-1 flex flex-col gap-4 w-full px-2">
+                    <button class="w-full aspect-square rounded-lg flex items-center justify-center text-gray-400 hover:text-cyan-400 hover:bg-white/5 transition-all" title="Stage">
+                        <i class="fa-solid fa-desktop"></i>
+                    </button>
+                    <button class="w-full aspect-square rounded-lg flex items-center justify-center text-gray-400 hover:text-cyan-400 hover:bg-white/5 transition-all" title="Whiteboard" onclick="app.toggleWhiteboard()">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                    </button>
+                    <button class="w-full aspect-square rounded-lg flex items-center justify-center text-gray-400 hover:text-cyan-400 hover:bg-white/5 transition-all relative" title="Chat" onclick="app.toggleSidebar('chat')">
+                        <i class="fa-solid fa-comment-dots"></i>
+                        <span class="absolute top-2 right-2 w-2 h-2 bg-purple-500 rounded-full"></span>
+                    </button>
+                    <button class="w-full aspect-square rounded-lg flex items-center justify-center text-gray-400 hover:text-cyan-400 hover:bg-white/5 transition-all" title="Participants" onclick="app.toggleSidebar('participants')">
+                        <i class="fa-solid fa-users"></i>
+                    </button>
+                </div>
+
+                <div class="flex flex-col gap-4 w-full px-2">
+                     <button class="w-full aspect-square rounded-lg flex items-center justify-center text-gray-400 hover:text-red-400 hover:bg-white/5 transition-all" title="End Call" onclick="app.leaveMeeting()">
+                        <i class="fa-solid fa-power-off"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Main Content Area -->
+            <div class="flex-1 flex flex-col relative bg-black/20">
+                <!-- Top Bar -->
+                <div class="h-14 glass-panel border-l-0 border-r-0 border-t-0 flex items-center justify-between px-6 z-10">
+                    <div class="flex items-center gap-4">
+                        <h2 class="font-orbitron font-bold text-lg tracking-wider">PROJECT <span class="text-cyan-400">TITAN</span></h2>
+                        <div class="px-2 py-0.5 bg-red-500/20 border border-red-500/30 text-red-400 text-[10px] rounded font-mono flex items-center gap-2">
+                            <span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span> REC
+                        </div>
+                        <div class="h-4 w-px bg-white/10 mx-2"></div>
+                        <div class="text-xs font-mono text-gray-400" id="clock">00:00:00</div>
+                    </div>
+                    
+                    <div class="flex items-center gap-3">
+                         <div class="flex -space-x-2 mr-4">
+                            <img src="https://i.pravatar.cc/100?img=1" class="w-8 h-8 rounded-full border-2 border-slate-900" title="User 1">
+                            <img src="https://i.pravatar.cc/100?img=2" class="w-8 h-8 rounded-full border-2 border-slate-900" title="User 2">
+                            <img src="https://i.pravatar.cc/100?img=3" class="w-8 h-8 rounded-full border-2 border-slate-900" title="User 3">
+                            <div class="w-8 h-8 rounded-full border-2 border-slate-900 bg-slate-700 flex items-center justify-center text-xs font-bold">+12</div>
+                        </div>
+                        <button class="px-3 py-1.5 rounded bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 text-xs font-bold hover:bg-cyan-500/30 transition-colors">
+                            <i class="fa-solid fa-user-plus mr-1"></i> INVITE
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Stage / Grid -->
+                <div class="flex-1 relative p-4 overflow-hidden" id="stage-area">
+                    <!-- Screen Share Container (Central Focus) -->
+                    <div id="screen-share-container" class="w-full h-full flex flex-col hidden">
+                         <div class="flex-1 relative rounded-xl overflow-hidden border border-cyan-500/30 shadow-[0_0_50px_rgba(0,0,0,0.5)] bg-black">
+                            <video id="shared-screen" autoplay playsinline class="w-full h-full object-contain"></video>
+                            
+                            <!-- Presenter Label -->
+                            <div class="absolute top-4 left-4 bg-black/60 backdrop-blur-md px-3 py-1 rounded-md border border-white/10 flex items-center gap-2">
+                                <i class="fa-solid fa-share-nodes text-cyan-400"></i>
+                                <span class="text-xs font-bold text-white">Alex Chen is sharing</span>
+                            </div>
+                        </div>
+                        <!-- Filmstrip of participants -->
+                        <div class="h-32 mt-4 flex gap-4 overflow-x-auto pb-2 scrollbar-hide" id="filmstrip">
+                            <!-- Injected via JS -->
+                        </div>
+                    </div>
+
+                    <!-- Grid Layout (Default) -->
+                    <div id="grid-container" class="w-full h-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 auto-rows-fr">
+                        <!-- Local User -->
+                         <div class="relative bg-slate-800 rounded-xl overflow-hidden border border-white/5 group">
+                            <video id="local-video-room" autoplay muted playsinline class="w-full h-full object-cover transform scale-x-[-1]"></video>
+                            <div class="absolute bottom-3 left-3 bg-black/60 backdrop-blur px-2 py-1 rounded text-xs font-medium">You</div>
+                            <div class="absolute inset-0 border-2 border-cyan-500 opacity-0 group-[.speaking]:opacity-100 transition-opacity rounded-xl pointer-events-none"></div>
+                        </div>
+                        <!-- Other Participants generated by JS -->
+                    </div>
+                    
+                    <!-- Whiteboard Overlay -->
+                    <div id="whiteboard-container" class="absolute inset-4 bg-slate-900 rounded-xl border border-slate-700 z-30 hidden flex flex-col">
+                        <div class="h-10 border-b border-slate-700 flex items-center justify-between px-4 bg-slate-800/50 rounded-t-xl">
+                            <span class="text-sm font-bold"><i class="fa-solid fa-pen-to-square text-cyan-400 mr-2"></i> Whiteboard</span>
+                            <button onclick="app.toggleWhiteboard()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
+                        <div class="flex-1 relative bg-[#1a1a1a]">
+                            <canvas id="whiteboard-canvas" class="w-full h-full cursor-crosshair"></canvas>
+                            <!-- Toolbar -->
+                            <div class="absolute left-4 top-4 flex flex-col gap-2 bg-slate-800 p-2 rounded-lg border border-slate-700 shadow-xl">
+                                <button class="p-2 rounded hover:bg-slate-700 text-cyan-400 bg-slate-700" title="Pen"><i class="fa-solid fa-pen"></i></button>
+                                <button class="p-2 rounded hover:bg-slate-700 text-gray-400" title="Eraser"><i class="fa-solid fa-eraser"></i></button>
+                                <button class="p-2 rounded hover:bg-slate-700 text-gray-400" title="Shapes"><i class="fa-solid fa-shapes"></i></button>
+                                <button class="p-2 rounded hover:bg-slate-700 text-gray-400" title="Text"><i class="fa-solid fa-font"></i></button>
+                                <div class="h-px bg-white/10 my-1"></div>
+                                <div class="w-6 h-6 rounded-full bg-white border border-gray-500 cursor-pointer"></div>
+                                <div class="w-6 h-6 rounded-full bg-red-500 border border-transparent cursor-pointer"></div>
+                                <div class="w-6 h-6 rounded-full bg-blue-500 border border-transparent cursor-pointer"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bottom Control Bar -->
+                <div class="h-20 glass-panel border-l-0 border-r-0 border-b-0 flex items-center justify-center gap-4 z-20">
+                     <button onclick="app.toggleAudio()" id="btn-audio" class="w-12 h-12 rounded-full bg-slate-700 hover:bg-slate-600 flex items-center justify-center transition-all text-white relative">
+                        <i class="fa-solid fa-microphone"></i>
+                        <span class="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border border-slate-900 hidden" id="audio-indicator"></span>
+                    </button>
+                    
+                    <button onclick="app.toggleVideo()" id="btn-video" class="w-12 h-12 rounded-full bg-slate-700 hover:bg-slate-600 flex items-center justify-center transition-all text-white">
+                        <i class="fa-solid fa-video"></i>
+                    </button>
+
+                    <button onclick="app.startScreenShare()" id="btn-share" class="w-14 h-14 rounded-2xl bg-cyan-600 hover:bg-cyan-500 flex items-center justify-center transition-all text-white shadow-[0_0_20px_rgba(8,145,178,0.4)] mx-4">
+                        <i class="fa-solid fa-arrow-up-from-bracket text-xl"></i>
+                    </button>
+                    
+                    <button class="w-12 h-12 rounded-full bg-slate-700 hover:bg-slate-600 flex items-center justify-center transition-all text-white" title="Reactions">
+                        <i class="fa-regular fa-face-smile"></i>
+                    </button>
+                    
+                    <button class="w-12 h-12 rounded-full bg-slate-700 hover:bg-slate-600 flex items-center justify-center transition-all text-white" title="Settings">
+                        <i class="fa-solid fa-sliders"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Right Sidebar: Chat/People -->
+            <div id="right-sidebar" class="w-80 glass-panel border-l border-white/10 flex flex-col transition-all duration-300 transform translate-x-full absolute right-0 top-0 bottom-0 z-40 bg-slate-900/95 backdrop-blur-xl hidden">
+                <div class="h-14 flex items-center justify-between px-4 border-b border-white/10">
+                    <h3 class="font-bold font-orbitron" id="sidebar-title">COMM_LINK</h3>
+                    <button onclick="app.toggleSidebar(null)" class="text-gray-400 hover:text-white"><i class="fa-solid fa-times"></i></button>
+                </div>
+                
+                <!-- Chat Container -->
+                <div id="sidebar-chat-container" class="flex-1 flex flex-col overflow-hidden">
+                    <div class="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-slate-700" id="chat-messages">
+                        <!-- Messages Injected Here -->
+                        <div class="flex flex-col gap-1">
+                            <div class="flex items-baseline justify-between">
+                                <span class="text-xs font-bold text-cyan-400">System</span>
+                                <span class="text-[10px] text-gray-500">10:00 AM</span>
+                            </div>
+                            <p class="text-sm text-gray-300 bg-slate-800/50 p-2 rounded border border-white/5">Welcome to HoloStream Secure Channel.</p>
+                        </div>
+                    </div>
+
+                    <div class="p-4 border-t border-white/10 bg-slate-900/50">
+                        <div class="relative">
+                            <input type="text" id="chat-input" placeholder="Type message..." class="w-full bg-slate-800 border border-slate-700 rounded-full px-4 py-2 text-sm focus:outline-none focus:border-cyan-500 pr-10">
+                            <button onclick="app.sendMessage()" class="absolute right-2 top-1/2 -translate-y-1/2 text-cyan-500 hover:text-cyan-400 p-1">
+                                <i class="fa-solid fa-paper-plane"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Participants Container -->
+                <div id="sidebar-participants-container" class="flex-1 flex flex-col hidden overflow-hidden">
+                    <div class="p-4 border-b border-white/10 bg-slate-800/30">
+                        <div class="relative">
+                            <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"></i>
+                            <input type="text" placeholder="Search users..." class="w-full bg-black/20 border border-slate-700 rounded px-3 py-1.5 pl-9 text-sm focus:outline-none focus:border-cyan-500">
+                        </div>
+                    </div>
+                    <div class="flex-1 overflow-y-auto p-2" id="participants-list">
+                        <!-- Participants injected here -->
+                    </div>
+                    <div class="p-4 border-t border-white/10 flex gap-2">
+                        <button class="flex-1 py-2 bg-slate-800 hover:bg-slate-700 rounded text-sm border border-white/10">Mute All</button>
+                        <button class="flex-1 py-2 bg-cyan-900/30 text-cyan-400 hover:bg-cyan-900/50 rounded text-sm border border-cyan-500/30">Invite</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Modals -->
+    <div id="modal-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-4">
+        
+        <!-- Settings Modal -->
+        <div id="settings-modal" class="w-full max-w-4xl h-[80vh] bg-slate-900 border border-slate-700 rounded-xl flex overflow-hidden shadow-2xl relative hidden">
+            <!-- Sidebar -->
+            <div class="w-64 bg-slate-950/50 border-r border-slate-700 flex flex-col">
+                <div class="p-6 border-b border-slate-800">
+                    <h2 class="font-orbitron text-xl font-bold">SETTINGS</h2>
+                </div>
+                <nav class="flex-1 p-4 space-y-2">
+                    <button class="w-full text-left px-4 py-3 rounded bg-cyan-900/20 text-cyan-400 border border-cyan-500/30 font-medium transition-all" data-tab="audio">
+                        <i class="fa-solid fa-microphone mr-3"></i> Audio
+                    </button>
+                    <button class="w-full text-left px-4 py-3 rounded hover:bg-white/5 text-gray-400 hover:text-white transition-all" data-tab="video">
+                        <i class="fa-solid fa-video mr-3"></i> Video
+                    </button>
+                    <button class="w-full text-left px-4 py-3 rounded hover:bg-white/5 text-gray-400 hover:text-white transition-all" data-tab="general">
+                        <i class="fa-solid fa-sliders mr-3"></i> General
+                    </button>
+                    <button class="w-full text-left px-4 py-3 rounded hover:bg-white/5 text-gray-400 hover:text-white transition-all" data-tab="network">
+                        <i class="fa-solid fa-network-wired mr-3"></i> Network
+                    </button>
+                </nav>
+            </div>
+
+            <!-- Content -->
+            <div class="flex-1 flex flex-col bg-slate-900/80">
+                <div class="flex-1 p-8 overflow-y-auto">
+                    
+                    <!-- Audio Settings -->
+                    <div id="tab-audio" class="space-y-8 animate-fade-in">
+                        <h3 class="text-2xl font-bold border-b border-white/10 pb-4 mb-6">Audio Configuration</h3>
+                        
+                        <div class="space-y-4">
+                            <label class="block text-sm font-bold text-gray-400 uppercase tracking-wider">Microphone</label>
+                            <select class="w-full bg-black border border-slate-700 rounded p-3 focus:border-cyan-500 outline-none text-white">
+                                <option>Default - Internal Microphone</option>
+                                <option>Headset (Holo-Link Pro)</option>
+                                <option>Virtual Audio Cable</option>
+                            </select>
+                            
+                            <div class="bg-black/40 p-4 rounded border border-white/5 mt-2">
+                                <div class="flex justify-between text-xs mb-2">
+                                    <span>Input Level</span>
+                                    <span class="text-cyan-400">Normal</span>
+                                </div>
+                                <div class="h-2 bg-slate-800 rounded-full overflow-hidden">
+                                    <div class="h-full bg-gradient-to-r from-green-500 to-red-500 w-[60%] animate-pulse"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="space-y-4">
+                            <label class="block text-sm font-bold text-gray-400 uppercase tracking-wider">Speakers</label>
+                            <select class="w-full bg-black border border-slate-700 rounded p-3 focus:border-cyan-500 outline-none text-white">
+                                <option>Default - Internal Speakers</option>
+                                <option>Headset (Holo-Link Pro)</option>
+                            </select>
+                            <button class="px-4 py-2 border border-white/20 rounded hover:bg-white/10 text-sm">
+                                <i class="fa-solid fa-play mr-2"></i> Test Speaker
+                            </button>
+                        </div>
+
+                        <div class="space-y-4 pt-4 border-t border-white/5">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <div class="font-bold">Noise Cancellation</div>
+                                    <div class="text-xs text-gray-500">AI-driven background suppression</div>
+                                </div>
+                                <div class="w-12 h-6 bg-cyan-900 rounded-full relative cursor-pointer border border-cyan-500/50">
+                                    <div class="absolute right-1 top-1 w-4 h-4 bg-cyan-400 rounded-full shadow-[0_0_10px_cyan]"></div>
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <div class="font-bold">Spatial Audio</div>
+                                    <div class="text-xs text-gray-500">Immersive 3D soundstage</div>
+                                </div>
+                                <div class="w-12 h-6 bg-slate-800 rounded-full relative cursor-pointer border border-white/10">
+                                    <div class="absolute left-1 top-1 w-4 h-4 bg-gray-500 rounded-full"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Video Settings -->
+                    <div id="tab-video" class="space-y-8 hidden animate-fade-in">
+                        <h3 class="text-2xl font-bold border-b border-white/10 pb-4 mb-6">Visual Interface</h3>
+                        
+                        <div class="grid grid-cols-2 gap-6">
+                            <div class="space-y-4">
+                                <label class="block text-sm font-bold text-gray-400 uppercase tracking-wider">Camera</label>
+                                <select class="w-full bg-black border border-slate-700 rounded p-3 focus:border-cyan-500 outline-none text-white">
+                                    <option>FaceTime HD Camera</option>
+                                    <option>OBS Virtual Camera</option>
+                                </select>
+                            </div>
+                            <div class="aspect-video bg-black rounded border border-slate-700 flex items-center justify-center relative overflow-hidden">
+                                <div class="absolute inset-0 grid-bg opacity-20"></div>
+                                <i class="fa-solid fa-user text-4xl text-slate-700"></i>
+                                <div class="absolute bottom-2 right-2 text-[10px] text-gray-500">PREVIEW</div>
+                            </div>
+                        </div>
+
+                        <div class="space-y-4">
+                            <label class="block text-sm font-bold text-gray-400 uppercase tracking-wider">Resolution</label>
+                            <div class="flex gap-2">
+                                <button class="flex-1 py-2 bg-slate-800 border border-slate-600 rounded hover:border-cyan-500">720p</button>
+                                <button class="flex-1 py-2 bg-cyan-900/30 border border-cyan-500 text-cyan-400 rounded">1080p</button>
+                                <button class="flex-1 py-2 bg-slate-800 border border-slate-600 rounded hover:border-cyan-500">4K</button>
+                            </div>
+                        </div>
+                    </div>
+
+                     <!-- Network Settings -->
+                     <div id="tab-network" class="space-y-8 hidden animate-fade-in">
+                        <h3 class="text-2xl font-bold border-b border-white/10 pb-4 mb-6">Neural Link Status</h3>
+                        
+                        <div class="grid grid-cols-3 gap-4">
+                            <div class="bg-black/40 p-4 rounded border border-green-500/30 flex flex-col gap-2">
+                                <div class="text-gray-500 text-xs uppercase">Latency</div>
+                                <div class="text-2xl font-mono text-green-400">12ms</div>
+                            </div>
+                            <div class="bg-black/40 p-4 rounded border border-cyan-500/30 flex flex-col gap-2">
+                                <div class="text-gray-500 text-xs uppercase">Bandwidth</div>
+                                <div class="text-2xl font-mono text-cyan-400">1.2 Gbps</div>
+                            </div>
+                            <div class="bg-black/40 p-4 rounded border border-purple-500/30 flex flex-col gap-2">
+                                <div class="text-gray-500 text-xs uppercase">Packet Loss</div>
+                                <div class="text-2xl font-mono text-purple-400">0.001%</div>
+                            </div>
+                        </div>
+
+                        <div class="bg-black p-4 rounded border border-slate-700 h-64 relative">
+                            <!-- Fake Graph -->
+                            <div class="absolute inset-0 flex items-end justify-between px-4 pb-4 gap-1">
+                                <!-- Bars generated by JS ideally, but let's do CSS -->
+                                <div class="w-2 h-[40%] bg-cyan-900/50"></div>
+                                <div class="w-2 h-[50%] bg-cyan-900/50"></div>
+                                <div class="w-2 h-[45%] bg-cyan-900/50"></div>
+                                <div class="w-2 h-[60%] bg-cyan-900/50"></div>
+                                <div class="w-2 h-[55%] bg-cyan-900/50"></div>
+                                <div class="w-2 h-[70%] bg-cyan-900/50"></div>
+                                <div class="w-2 h-[65%] bg-cyan-900/50"></div>
+                                <div class="w-2 h-[80%] bg-cyan-900/50"></div>
+                                <div class="w-2 h-[75%] bg-cyan-900/50"></div>
+                                <div class="w-2 h-[85%] bg-cyan-500"></div>
+                            </div>
+                            <div class="absolute top-2 left-2 text-xs font-mono text-gray-500">REAL-TIME TRAFFIC ANALYSIS</div>
+                        </div>
+                    </div>
+
+                </div>
+                
+                <!-- Footer -->
+                <div class="p-6 border-t border-white/10 bg-slate-950/50 flex justify-end gap-4">
+                    <button onclick="document.getElementById('modal-overlay').classList.add('hidden')" class="px-6 py-2 rounded hover:bg-white/10 transition-colors">Cancel</button>
+                    <button onclick="document.getElementById('modal-overlay').classList.add('hidden')" class="px-6 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded font-bold shadow-[0_0_15px_rgba(8,145,178,0.4)] transition-all">Save Changes</button>
+                </div>
+            </div>
+
+            <!-- Close Button -->
+            <button onclick="document.getElementById('modal-overlay').classList.add('hidden')" class="absolute top-4 right-4 text-gray-500 hover:text-white">
+                <i class="fa-solid fa-times text-xl"></i>
+            </button>
+        </div>
+
+    </div>
+
+    <script>
+        class HoloStreamApp {
+            constructor() {
+                this.state = {
+                    view: 'loader', // loader, lobby, meeting
+                    media: {
+                        audio: true,
+                        video: true,
+                        screen: false
+                    },
+                    devices: {
+                        audioInput: [],
+                        videoInput: []
+                    },
+                    participants: [],
+                    messages: [],
+                    isSidebarOpen: false,
+                    sidebarType: null, // 'chat', 'participants'
+                    localStream: null,
+                    screenStream: null
+                };
+
+                this.dom = {
+                    loader: document.getElementById('loader'),
+                    lobby: document.getElementById('lobby-view'),
+                    meeting: document.getElementById('meeting-view'),
+                    localVideoLobby: document.getElementById('lobby-video-preview'),
+                    localVideoRoom: document.getElementById('local-video-room'),
+                    screenVideo: document.getElementById('shared-screen'),
+                    screenContainer: document.getElementById('screen-share-container'),
+                    gridContainer: document.getElementById('grid-container'),
+                    filmstrip: document.getElementById('filmstrip'),
+                    chatMessages: document.getElementById('chat-messages'),
+                    chatInput: document.getElementById('chat-input'),
+                    clock: document.getElementById('clock'),
+                    notifications: document.getElementById('notifications'),
+                    rightSidebar: document.getElementById('right-sidebar'),
+                    audioLevel: document.getElementById('lobby-audio-level')
+                };
+
+                this.mockNames = ['Sarah Connor', 'Neo', 'Trinity', 'Morpheus', 'Flynn', 'Tron', 'Major Kusanagi', 'Deckard'];
+                this.init();
+            }
+
+            async init() {
+                // Initialize Background Canvas
+                this.initBackgroundParticles();
+                
+                // Simulate system boot
+                setTimeout(() => {
+                    this.dom.loader.style.opacity = '0';
+                    setTimeout(() => {
+                        this.dom.loader.style.display = 'none';
+                        this.dom.lobby.classList.remove('hidden');
+                        // Small delay to allow display:block to apply before opacity transition
+                        requestAnimationFrame(() => {
+                            this.dom.lobby.style.opacity = '1';
+                        });
+                        this.startLobbyCamera();
+                    }, 700);
+                }, 2500);
+
+                // Start Clock
+                setInterval(() => this.updateClock(), 1000);
+                this.updateClock();
+
+                // Event Listeners for Chat
+                this.dom.chatInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') this.sendMessage();
+                });
+
+                this.initSettings();
+                
+                // Reaction Button
+                const reactionBtn = document.querySelector('button[title="Reactions"]');
+                if(reactionBtn) reactionBtn.onclick = () => this.triggerReaction();
+
+                this.simulateNetworkStats();
+            }
+
+            simulateNetworkStats() {
+                setInterval(() => {
+                    // Only update if settings modal is open and network tab is active (optimization)
+                    const isVisible = !document.getElementById('settings-modal').classList.contains('hidden') && 
+                                      !document.getElementById('tab-network').classList.contains('hidden');
+                    
+                    if(isVisible) {
+                        const latency = 10 + Math.floor(Math.random() * 5);
+                        const bandwidth = (1.0 + Math.random() * 0.4).toFixed(1);
+                        const packetLoss = (Math.random() * 0.005).toFixed(3);
+
+                        // Find elements by text content is hard, let's assume structure or add IDs in a real app. 
+                        // For this demo, I'll just update the bars randomly.
+                        const bars = document.querySelectorAll('#tab-network .h-64 > div > div');
+                        bars.forEach(bar => {
+                            if(Math.random() > 0.5) {
+                                const height = 20 + Math.random() * 80;
+                                bar.style.height = height + '%';
+                            }
+                        });
+                    }
+                }, 1000);
+            }
+
+            updateClock() {
+                const now = new Date();
+                this.dom.clock.innerText = now.toLocaleTimeString('en-US', { hour12: false });
+            }
+
+            /* --- MEDIA HANDLING --- */
+
+            async startLobbyCamera() {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                    this.state.localStream = stream;
+                    this.dom.localVideoLobby.srcObject = stream;
+                    
+                    // Hook up audio visualizer for lobby
+                    this.initAudioAnalyzer(stream);
+                    
+                } catch (e) {
+                    this.showNotification('Error accessing media devices', 'error');
+                    console.error(e);
+                }
+            }
+
+            initAudioAnalyzer(stream) {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const analyser = audioContext.createAnalyser();
+                const microphone = audioContext.createMediaStreamSource(stream);
+                const javascriptNode = audioContext.createScriptProcessor(2048, 1, 1);
+
+                analyser.smoothingTimeConstant = 0.8;
+                analyser.fftSize = 1024;
+
+                microphone.connect(analyser);
+                analyser.connect(javascriptNode);
+                javascriptNode.connect(audioContext.destination);
+
+                javascriptNode.onaudioprocess = () => {
+                    const array = new Uint8Array(analyser.frequencyBinCount);
+                    analyser.getByteFrequencyData(array);
+                    let values = 0;
+                    const length = array.length;
+                    for (let i = 0; i < length; i++) {
+                        values += (array[i]);
+                    }
+                    const average = values / length;
+                    if(this.dom.audioLevel) {
+                         this.dom.audioLevel.style.width = Math.min(100, average * 2) + '%';
+                    }
+                    
+                    // If in room, update speaking indicator
+                    if (this.state.view === 'meeting' && average > 10) {
+                         this.dom.localVideoRoom.parentElement.classList.add('speaking');
+                         document.getElementById('audio-indicator').classList.remove('hidden');
+                    } else if (this.state.view === 'meeting') {
+                         this.dom.localVideoRoom.parentElement.classList.remove('speaking');
+                         document.getElementById('audio-indicator').classList.add('hidden');
+                    }
+                };
+            }
+
+            toggleLobbyVideo() {
+                this.state.media.video = !this.state.media.video;
+                this.state.localStream.getVideoTracks().forEach(track => track.enabled = this.state.media.video);
+                const btn = document.getElementById('lobby-video-btn');
+                
+                if (this.state.media.video) {
+                    btn.classList.remove('bg-red-500', 'text-white');
+                    btn.classList.add('bg-cyan-500', 'text-black');
+                    btn.innerHTML = '<i class="fa-solid fa-video"></i>';
+                } else {
+                    btn.classList.add('bg-red-500', 'text-white');
+                    btn.classList.remove('bg-cyan-500', 'text-black');
+                    btn.innerHTML = '<i class="fa-solid fa-video-slash"></i>';
+                }
+            }
+
+            toggleLobbyAudio() {
+                this.state.media.audio = !this.state.media.audio;
+                this.state.localStream.getAudioTracks().forEach(track => track.enabled = this.state.media.audio);
+                const btn = document.getElementById('lobby-audio-btn');
+                
+                if (this.state.media.audio) {
+                    btn.classList.remove('bg-red-500');
+                    btn.classList.add('bg-slate-800');
+                    btn.innerHTML = '<i class="fa-solid fa-microphone"></i>';
+                } else {
+                    btn.classList.add('bg-red-500');
+                    btn.classList.remove('bg-slate-800');
+                    btn.innerHTML = '<i class="fa-solid fa-microphone-slash"></i>';
+                }
+            }
+
+            /* --- MEETING LOGIC --- */
+
+            createMeeting() {
+                this.enterMeetingRoom();
+                this.showNotification('Creating secure frequency...', 'info');
+                setTimeout(() => {
+                    this.showNotification('Connected to HoloNet', 'success');
+                    this.simulateParticipantsJoining();
+                }, 1000);
+            }
+
+            joinMeeting() {
+                const code = document.getElementById('join-code').value;
+                if(code.length < 3) {
+                    this.showNotification('Invalid Frequency Code', 'error');
+                    return;
+                }
+                this.enterMeetingRoom();
+                this.showNotification(`Joining Frequency: ${code}`, 'info');
+                setTimeout(() => {
+                    this.showNotification('Encryption Keys Exchanged', 'success');
+                    this.simulateParticipantsJoining();
+                }, 1500);
+            }
+
+            enterMeetingRoom() {
+                this.state.view = 'meeting';
+                this.dom.lobby.style.display = 'none';
+                this.dom.meeting.classList.remove('hidden');
+                
+                // Transfer stream
+                if (this.state.localStream) {
+                    this.dom.localVideoRoom.srcObject = this.state.localStream;
+                }
+                
+                // Sync buttons
+                this.updateControlButtons();
+            }
+
+            leaveMeeting() {
+                if(confirm("Terminate Neural Link?")) {
+                    location.reload();
+                }
+            }
+
+            updateControlButtons() {
+                const vBtn = document.getElementById('btn-video');
+                const aBtn = document.getElementById('btn-audio');
+
+                if (this.state.media.video) {
+                    vBtn.classList.remove('bg-red-500');
+                    vBtn.classList.add('bg-slate-700');
+                    vBtn.innerHTML = '<i class="fa-solid fa-video"></i>';
+                } else {
+                    vBtn.classList.add('bg-red-500');
+                    vBtn.classList.remove('bg-slate-700');
+                    vBtn.innerHTML = '<i class="fa-solid fa-video-slash"></i>';
+                }
+
+                if (this.state.media.audio) {
+                    aBtn.classList.remove('bg-red-500');
+                    aBtn.classList.add('bg-slate-700');
+                    aBtn.innerHTML = '<i class="fa-solid fa-microphone"></i>';
+                } else {
+                    aBtn.classList.add('bg-red-500');
+                    aBtn.classList.remove('bg-slate-700');
+                    aBtn.innerHTML = '<i class="fa-solid fa-microphone-slash"></i>';
+                }
+            }
+
+            toggleVideo() {
+                this.state.media.video = !this.state.media.video;
+                if(this.state.localStream) {
+                    this.state.localStream.getVideoTracks().forEach(t => t.enabled = this.state.media.video);
+                }
+                this.updateControlButtons();
+            }
+
+            toggleAudio() {
+                this.state.media.audio = !this.state.media.audio;
+                if(this.state.localStream) {
+                    this.state.localStream.getAudioTracks().forEach(t => t.enabled = this.state.media.audio);
+                }
+                this.updateControlButtons();
+            }
+
+            async startScreenShare() {
+                if (this.state.media.screen) {
+                    // Stop sharing
+                    this.stopScreenShare();
+                    return;
+                }
+
+                try {
+                    const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+                    this.state.screenStream = stream;
+                    this.dom.screenVideo.srcObject = stream;
+                    this.state.media.screen = true;
+
+                    stream.getVideoTracks()[0].onended = () => {
+                        this.stopScreenShare();
+                    };
+
+                    // UI Updates
+                    this.dom.screenContainer.classList.remove('hidden');
+                    this.dom.gridContainer.classList.add('hidden');
+                    document.getElementById('btn-share').classList.add('bg-red-500', 'animate-pulse');
+                    document.getElementById('btn-share').classList.remove('bg-cyan-600');
+
+                    this.showNotification('Screen Transmission Active', 'success');
+                    
+                    // Move participants to filmstrip
+                    this.renderFilmstrip();
+
+                } catch (e) {
+                    console.error("Screen share cancelled", e);
+                }
+            }
+
+            stopScreenShare() {
+                if(this.state.screenStream) {
+                    this.state.screenStream.getTracks().forEach(t => t.stop());
+                }
+                this.state.screenStream = null;
+                this.state.media.screen = false;
+                
+                this.dom.screenVideo.srcObject = null;
+                this.dom.screenContainer.classList.add('hidden');
+                this.dom.gridContainer.classList.remove('hidden');
+                
+                document.getElementById('btn-share').classList.remove('bg-red-500', 'animate-pulse');
+                document.getElementById('btn-share').classList.add('bg-cyan-600');
+                
+                this.showNotification('Screen Transmission Ended', 'info');
+            }
+
+            /* --- SIDEBAR & CHAT --- */
+
+            toggleSidebar(type) {
+                const sidebar = this.dom.rightSidebar;
+                const chatContainer = document.getElementById('sidebar-chat-container');
+                const partsContainer = document.getElementById('sidebar-participants-container');
+                const title = document.getElementById('sidebar-title');
+
+                if (type === null) {
+                    sidebar.classList.add('translate-x-full');
+                    setTimeout(() => sidebar.classList.add('hidden'), 300);
+                    this.state.isSidebarOpen = false;
+                    this.state.sidebarType = null;
+                    return;
+                }
+
+                // Switch Content
+                if (type === 'chat') {
+                    chatContainer.classList.remove('hidden');
+                    partsContainer.classList.add('hidden');
+                    title.innerText = "COMM_LINK";
+                } else if (type === 'participants') {
+                    chatContainer.classList.add('hidden');
+                    partsContainer.classList.remove('hidden');
+                    title.innerText = "NEURAL NODES";
+                    this.renderParticipantList();
+                }
+
+                if (this.state.isSidebarOpen && this.state.sidebarType === type) {
+                    this.toggleSidebar(null);
+                } else {
+                    sidebar.classList.remove('hidden');
+                    requestAnimationFrame(() => sidebar.classList.remove('translate-x-full'));
+                    this.state.isSidebarOpen = true;
+                    this.state.sidebarType = type;
+                }
+            }
+
+            renderParticipantList() {
+                const list = document.getElementById('participants-list');
+                list.innerHTML = '';
+
+                // Add Self
+                const selfItem = this.createParticipantListItem({name: 'You (Host)', id: 'local'}, true);
+                list.appendChild(selfItem);
+
+                // Add Others
+                this.state.participants.forEach(p => {
+                    list.appendChild(this.createParticipantListItem(p, false));
+                });
+            }
+
+            createParticipantListItem(p, isSelf) {
+                const div = document.createElement('div');
+                div.className = "flex items-center justify-between p-3 rounded hover:bg-white/5 transition-colors group cursor-pointer";
+                div.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <div class="relative">
+                            <img src="${isSelf ? 'https://i.pravatar.cc/150?u=me' : 'https://i.pravatar.cc/150?u=' + p.id}" class="w-8 h-8 rounded-full border border-slate-600">
+                            <div class="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-slate-900 rounded-full"></div>
+                        </div>
+                        <div>
+                            <div class="text-sm font-medium text-gray-200">${p.name}</div>
+                            <div class="text-[10px] text-gray-500">${isSelf ? 'Host' : 'Connected'}</div>
+                        </div>
+                    </div>
+                    <div class="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button class="w-6 h-6 rounded bg-slate-800 flex items-center justify-center hover:text-red-400" title="Mute"><i class="fa-solid fa-microphone-slash text-xs"></i></button>
+                        <button class="w-6 h-6 rounded bg-slate-800 flex items-center justify-center hover:text-cyan-400" title="More"><i class="fa-solid fa-ellipsis-vertical text-xs"></i></button>
+                    </div>
+                `;
+                return div;
+            }
+
+            sendMessage() {
+                const text = this.dom.chatInput.value;
+                if (!text.trim()) return;
+
+                this.addChatMessage('You', text, true);
+                this.dom.chatInput.value = '';
+
+                // Simulate reply
+                setTimeout(() => {
+                    const randomParticipant = this.state.participants[Math.floor(Math.random() * this.state.participants.length)] || {name: 'System'};
+                    const replies = ["Acknowledged.", "Copy that.", "Uploading data now...", "Can you see my screen?", "Let's pivot to the next topic.", "Packet loss detected."];
+                    this.addChatMessage(randomParticipant.name, replies[Math.floor(Math.random() * replies.length)], false);
+                }, 2000 + Math.random() * 3000);
+            }
+
+            addChatMessage(sender, text, isMe) {
+                const div = document.createElement('div');
+                div.className = `flex flex-col gap-1 ${isMe ? 'items-end' : 'items-start'}`;
+                
+                const bubbleColor = isMe ? 'bg-cyan-500/20 border-cyan-500/30 text-cyan-100' : 'bg-slate-800 border-white/10 text-gray-300';
+                
+                div.innerHTML = `
+                    <div class="flex items-baseline gap-2">
+                        <span class="text-xs font-bold ${isMe ? 'text-cyan-400' : 'text-purple-400'}">${sender}</span>
+                        <span class="text-[10px] text-gray-500">${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                    </div>
+                    <p class="text-sm ${bubbleColor} p-2 rounded border max-w-[90%] break-words">${text}</p>
+                `;
+                
+                this.dom.chatMessages.appendChild(div);
+                this.dom.chatMessages.scrollTop = this.dom.chatMessages.scrollHeight;
+            }
+
+            /* --- PARTICIPANTS SIMULATION --- */
+
+            simulateParticipantsJoining() {
+                let count = 0;
+                const max = 5;
+                const interval = setInterval(() => {
+                    if (count >= max) {
+                        clearInterval(interval);
+                        return;
+                    }
+                    const name = this.mockNames[count];
+                    this.addParticipant(name, count);
+                    this.showNotification(`${name} connected`, 'success');
+                    count++;
+                }, 2000);
+            }
+
+            addParticipant(name, index) {
+                const id = `p-${index}`;
+                this.state.participants.push({ id, name });
+                
+                // Add to Grid
+                const wrapper = document.createElement('div');
+                wrapper.className = "relative bg-slate-800 rounded-xl overflow-hidden border border-white/5 group";
+                wrapper.innerHTML = `
+                    <img src="https://i.pravatar.cc/400?img=${index + 10}" class="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity">
+                    <div class="absolute bottom-3 left-3 bg-black/60 backdrop-blur px-2 py-1 rounded text-xs font-medium">${name}</div>
+                    <div class="absolute top-3 right-3 bg-black/60 w-6 h-6 rounded flex items-center justify-center">
+                        <i class="fa-solid fa-microphone-slash text-red-500 text-xs"></i>
+                    </div>
+                    <div class="absolute inset-0 border-2 border-purple-500 opacity-0 transition-opacity rounded-xl pointer-events-none speaking-ring"></div>
+                `;
+                
+                this.dom.gridContainer.appendChild(wrapper);
+
+                // Simulate speaking randomly
+                setInterval(() => {
+                    if(Math.random() > 0.7) {
+                        wrapper.querySelector('.speaking-ring').classList.remove('opacity-0');
+                        setTimeout(() => {
+                             wrapper.querySelector('.speaking-ring').classList.add('opacity-0');
+                        }, 2000);
+                    }
+                }, 5000 + Math.random() * 5000);
+            }
+
+            renderFilmstrip() {
+                this.dom.filmstrip.innerHTML = '';
+                // Add self
+                const selfDiv = document.createElement('div');
+                selfDiv.className = "min-w-[120px] h-full bg-slate-800 rounded-lg border border-white/10 overflow-hidden relative";
+                selfDiv.innerHTML = `<video autoplay muted playsinline class="w-full h-full object-cover transform scale-x-[-1]"></video>`;
+                // Re-attach stream
+                const vid = selfDiv.querySelector('video');
+                vid.srcObject = this.state.localStream;
+                this.dom.filmstrip.appendChild(selfDiv);
+
+                // Add others
+                this.state.participants.forEach((p, idx) => {
+                     const div = document.createElement('div');
+                     div.className = "min-w-[120px] h-full bg-slate-800 rounded-lg border border-white/10 overflow-hidden relative";
+                     div.innerHTML = `
+                        <img src="https://i.pravatar.cc/150?img=${idx + 10}" class="w-full h-full object-cover">
+                        <div class="absolute bottom-1 left-1 text-[10px] bg-black/50 px-1 rounded">${p.name}</div>
+                     `;
+                     this.dom.filmstrip.appendChild(div);
+                });
+            }
+
+            /* --- UTILS --- */
+
+            showNotification(text, type = 'info') {
+                const div = document.createElement('div');
+                const colors = {
+                    info: 'border-cyan-500 bg-cyan-950/80 text-cyan-400',
+                    success: 'border-green-500 bg-green-950/80 text-green-400',
+                    error: 'border-red-500 bg-red-950/80 text-red-400'
+                };
+                
+                div.className = `px-4 py-3 rounded border-l-4 backdrop-blur-md shadow-lg transform translate-x-10 opacity-0 transition-all duration-300 font-mono text-sm ${colors[type]}`;
+                div.innerText = text;
+                
+                this.dom.notifications.appendChild(div);
+                
+                // Animate in
+                requestAnimationFrame(() => {
+                    div.classList.remove('translate-x-10', 'opacity-0');
+                });
+
+                // Remove after 3s
+                setTimeout(() => {
+                    div.classList.add('translate-x-10', 'opacity-0');
+                    setTimeout(() => div.remove(), 300);
+                }, 3000);
+            }
+
+            initBackgroundParticles() {
+                const canvas = document.getElementById('bg-canvas');
+                const ctx = canvas.getContext('2d');
+                let width, height;
+                let particles = [];
+
+                const resize = () => {
+                    width = canvas.width = window.innerWidth;
+                    height = canvas.height = window.innerHeight;
+                };
+                
+                window.addEventListener('resize', resize);
+                resize();
+
+                class Particle {
+                    constructor() {
+                        this.x = Math.random() * width;
+                        this.y = Math.random() * height;
+                        this.vx = (Math.random() - 0.5) * 0.5;
+                        this.vy = (Math.random() - 0.5) * 0.5;
+                        this.size = Math.random() * 2;
+                        this.color = Math.random() > 0.5 ? 'rgba(0, 243, 255, 0.3)' : 'rgba(188, 19, 254, 0.3)';
+                    }
+                    update() {
+                        this.x += this.vx;
+                        this.y += this.vy;
+                        if(this.x < 0) this.x = width;
+                        if(this.x > width) this.x = 0;
+                        if(this.y < 0) this.y = height;
+                        if(this.y > height) this.y = 0;
+                    }
+                    draw() {
+                        ctx.fillStyle = this.color;
+                        ctx.beginPath();
+                        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+
+                for(let i=0; i<100; i++) particles.push(new Particle());
+
+                const animate = () => {
+                    ctx.clearRect(0, 0, width, height);
+                    particles.forEach(p => {
+                        p.update();
+                        p.draw();
+                    });
+                    
+                    // Connect particles
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+                    for(let i=0; i<particles.length; i++) {
+                        for(let j=i; j<particles.length; j++) {
+                            const dx = particles[i].x - particles[j].x;
+                            const dy = particles[i].y - particles[j].y;
+                            const dist = Math.sqrt(dx*dx + dy*dy);
+                            if(dist < 100) {
+                                ctx.beginPath();
+                                ctx.moveTo(particles[i].x, particles[i].y);
+                                ctx.lineTo(particles[j].x, particles[j].y);
+                                ctx.stroke();
+                            }
+                        }
+                    }
+                    requestAnimationFrame(animate);
+                };
+                animate();
+            }
+
+            toggleWhiteboard() {
+                const wb = document.getElementById('whiteboard-container');
+                if(wb.classList.contains('hidden')) {
+                    wb.classList.remove('hidden');
+                    this.initWhiteboard();
+                } else {
+                    wb.classList.add('hidden');
+                }
+            }
+
+            initWhiteboard() {
+                if(this.whiteboardInitialized) return;
+                this.whiteboardInitialized = true;
+                
+                const canvas = document.getElementById('whiteboard-canvas');
+                const ctx = canvas.getContext('2d');
+                let painting = false;
+
+                // Set size
+                const rect = canvas.parentElement.getBoundingClientRect();
+                canvas.width = rect.width;
+                canvas.height = rect.height;
+
+                // Handle resize
+                window.addEventListener('resize', () => {
+                    const rect = canvas.parentElement.getBoundingClientRect();
+                    // Save content? For now just reset on resize is easier
+                    canvas.width = rect.width;
+                    canvas.height = rect.height;
+                });
+
+                const startPosition = (e) => {
+                    painting = true;
+                    draw(e);
+                }
+                const endPosition = () => {
+                    painting = false;
+                    ctx.beginPath();
+                }
+                const draw = (e) => {
+                    if (!painting) return;
+                    const rect = canvas.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+
+                    ctx.lineWidth = 3;
+                    ctx.lineCap = 'round';
+                    ctx.strokeStyle = '#22d3ee'; // Cyan
+
+                    ctx.lineTo(x, y);
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ctx.moveTo(x, y);
+                }
+
+                canvas.addEventListener('mousedown', startPosition);
+                canvas.addEventListener('mouseup', endPosition);
+                canvas.addEventListener('mousemove', draw);
+            }
+
+            initSettings() {
+                // Tab Switching
+                const tabs = document.querySelectorAll('[data-tab]');
+                tabs.forEach(tab => {
+                    tab.addEventListener('click', () => {
+                        // Reset all tabs
+                        tabs.forEach(t => t.classList.remove('bg-cyan-900/20', 'text-cyan-400', 'border-cyan-500/30'));
+                        tabs.forEach(t => t.classList.add('text-gray-400', 'hover:text-white'));
+                        
+                        // Activate clicked
+                        tab.classList.remove('text-gray-400', 'hover:text-white');
+                        tab.classList.add('bg-cyan-900/20', 'text-cyan-400', 'border', 'border-cyan-500/30');
+
+                        // Show Content
+                        const targetId = 'tab-' + tab.dataset.tab;
+                        document.querySelectorAll('#settings-modal > div > div > div[id^="tab-"]').forEach(content => {
+                            content.classList.add('hidden');
+                        });
+                        document.getElementById(targetId).classList.remove('hidden');
+                    });
+                });
+
+                // Wire up Settings Button
+                const settingsBtn = document.querySelector('button[title="Settings"]');
+                if(settingsBtn) {
+                    settingsBtn.onclick = () => {
+                        document.getElementById('modal-overlay').classList.remove('hidden');
+                        document.getElementById('settings-modal').classList.remove('hidden');
+                    };
+                }
+            }
+
+            triggerReaction() {
+                const reactions = ['👍', '❤️', '😂', '😮', '👏', '🎉'];
+                const reaction = reactions[Math.floor(Math.random() * reactions.length)];
+                const container = this.dom.meeting; // or stage
+                
+                // Create multiple floating elements
+                for(let i=0; i<5; i++) {
+                    setTimeout(() => {
+                        const el = document.createElement('div');
+                        el.innerText = reaction;
+                        el.style.position = 'absolute';
+                        el.style.left = (Math.random() * 80 + 10) + '%';
+                        el.style.bottom = '100px';
+                        el.style.fontSize = (Math.random() * 20 + 20) + 'px';
+                        el.style.pointerEvents = 'none';
+                        el.style.zIndex = '100';
+                        el.style.transition = 'all 2s ease-out';
+                        el.style.opacity = '1';
+                        el.style.transform = `translate(-50%, 0) scale(0.5)`;
+                        
+                        container.appendChild(el);
+
+                        requestAnimationFrame(() => {
+                            el.style.bottom = (Math.random() * 200 + 300) + 'px';
+                            el.style.opacity = '0';
+                            el.style.transform = `translate(${Math.random() * 100 - 50}px, 0) scale(1.5)`;
+                        });
+
+                        setTimeout(() => el.remove(), 2000);
+                    }, i * 100);
+                }
+                
+                this.showNotification(`Reaction Sent: ${reaction}`, 'info');
+            }
+        }
+
+        const app = new HoloStreamApp();
+    </script>
+</body>
+</html>
